@@ -1,2 +1,3 @@
-solver
-*.txt
+sudoku/Solver
+sudoku/Generator
+sudoku/*.txt
