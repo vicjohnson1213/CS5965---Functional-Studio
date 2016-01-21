@@ -165,7 +165,7 @@ solveSq b s = let coords = idxToCoords s b
 
 
 
--- | generate creates a new random sudoku board
+-- | generate creates a new random sudoku board.
 generate :: [(Int, Int)] -> Board
 generate l = let emptyBd = (map (\e -> Cell 0 False) [1..81])
                  bd = generate' l (Board 3 3 emptyBd Incomplete) 25
@@ -173,6 +173,7 @@ generate l = let emptyBd = (map (\e -> Cell 0 False) [1..81])
         then Board 0 0 emptyBd Broken
         else bd
 
+-- | generate' attempts to put a new value in a random cell.
 generate' :: [(Int, Int)] -> Board -> Int -> Board
 generate' v b f = let (val,idx) = head v
                       newCell = Cell val True
