@@ -11,6 +11,7 @@ main = do
     contents <- readFile filename
     let all = words contents
     let b = buildBoard all
+    --print b
     let sol = solve b
     putStrLn $ printBoard b
     if isNothing sol

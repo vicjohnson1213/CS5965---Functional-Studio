@@ -3,11 +3,14 @@ module Sudoku (
     Board(..),
     buildBoard,
     printBoard,
-    solve
+    solve,
+    generate
 ) where
 
 import Data.List
 import Data.Char
+import Data.Maybe
+import System.Random
 
 -- | The status of the board.
 data Status = Complete | Incomplete | Broken deriving (Show, Eq)
@@ -121,11 +124,13 @@ validBoard' b s = let coords = idxToCoords s b
             then validBoard' b (succ s)
             else (validCell coords b) && validBoard' b (succ s)
 
+
 -- | solve returns the solved board.
 solve :: Board -> Maybe Board
-solve b = if validBoard b
-    then Just $ solve' b (-1)
-    else Nothing
+solve b = let solution = solve' b (-1)
+    in if validBoard b && (status solution) == Complete
+        then Just $ solution
+        else Nothing
 
 -- | solve' iterates each cell and returns the resulting board, whether it is
 --   broken or not.
@@ -134,7 +139,9 @@ solve' b s = let nextBd = solveSq b (succ s)
     in case status nextBd of
         Incomplete -> solve' nextBd (succ s)
         Complete -> nextBd
-        Broken -> solve' nextBd (pred s)
+        Broken -> if (pred s) < -1
+            then Board 0 0 [] Broken
+            else solve' nextBd (pred s)
 
 -- | solveSq finds the next legal value for a specific cell and returns a new
 --   board with that cell updated.
@@ -155,3 +162,23 @@ solveSq b s = let coords = idxToCoords s b
                 then setCell coords (Cell 0 False)
                     (setStatus newBd Broken)
                 else solveSq newBd s
+
+
+
+-- | generate creates a new random sudoku board
+generate :: [(Int, Int)] -> Board
+generate l = let emptyBd = (map (\e -> Cell 0 False) [1..81])
+                 bd = generate' l (Board 3 3 emptyBd Incomplete) 25
+    in if isNothing (solve bd)
+        then Board 0 0 emptyBd Broken
+        else bd
+
+generate' :: [(Int, Int)] -> Board -> Int -> Board
+generate' v b f = let (val,idx) = head v
+                      newCell = Cell val True
+                      newBd = setCell (idxToCoords idx b) newCell b
+    in if f == 0
+        then b
+        else if validBoard newBd
+            then generate' (tail v) newBd (pred f)
+            else generate' (tail v) b f
