@@ -1,13 +1,13 @@
 import System.IO
 import Data.List
 import Data.Maybe
-import Debug.Trace
+import Data.Char
 
 data Status = Complete | Incomplete | Broken deriving (Show, Eq)
 
 data Square = Square {
     value :: Int,
-    solved :: Bool
+    original :: Bool
 } deriving (Show)
 
 data Board = Board {
@@ -18,14 +18,22 @@ data Board = Board {
 } deriving (Show)
 
 main = do
-    --contents <- readFile "sudoku.txt"
-    contents <- readFile "bad.txt"
+    contents <- readFile "sudoku.txt"
+    --contents <- readFile "bad.txt"
     --contents <- readFile "small.txt"
     let all = map convertEl (words contents)
     let b = Board (value (head all)) (value (head . tail $ all)) (tail . tail $ all) Incomplete
-    print b
-    --print $ toVals $ squares $ b
-    --print $ toVals $ squares $ solve b
+    putStrLn $ pprint b
+    putStrLn "\n\n"
+    putStrLn $ pprint $ solve b
+
+pprint :: Board -> String
+pprint b = pprintS (toVals $ squares b) ((width b)^2)
+
+pprintS :: [Int] -> Int -> String
+pprintS [] _ = ""
+pprintS i s = let (x, xs) = splitAt s i
+    in (intersperse ' ' (map intToDigit x)) ++ "\n" ++ (pprintS xs s)
 
 
 convertEl :: String -> Square
@@ -72,14 +80,12 @@ getSquare c b = (squares b)!!(getListIdx c b)
 setSquare :: (Int, Int) -> Square -> Board -> Board
 setSquare c s b = setSquareIdx (getListIdx c b) s b
 
---setSquareIdx :: Int -> Square -> Board -> Board
---setSquareIdx x s b = let (left,_:right) = splitAt x (squares b)
---    in (Board (width b) (height b) (left ++ s:right))
-
-
 setSquareIdx :: Int -> Square -> Board -> Board
 setSquareIdx x s b = let (left,_:right) = splitAt x (squares b)
     in Board (width b) (height b) (left ++ (s:right)) (status b)
+
+setStatus :: Board -> Status -> Board
+setStatus b s = Board (width b) (height b) (squares b) s
 
 -- END SETTERS FOR BOARD
 
@@ -93,28 +99,29 @@ validSquare (x, y) b = let sq = (squares b)!!(getListIdx (x, y) b)
 
 
 solve :: Board -> Board
-solve b = solve' b 0
+solve b = solve' b (-1)
 
 solve' :: Board -> Int -> Board
-solve' b s = let oldBd = b
-                 newBd = (solveSquare oldBd s)
-    in if (status newBd) == Broken
-        then solve' newBd (pred s)
-        else if (status newBd) == Complete
-            then newBd
-            else solve' newBd (succ s)
+solve' b s = let nextBd = solveSq b (succ s)
+    in case status nextBd of
+        Incomplete -> solve' nextBd (succ s)
+        Complete -> nextBd
+        Broken -> solve' nextBd (pred s)
 
-solveSquare :: Board -> Int -> Board
-solveSquare b s = let coords = getCoords s b
-                      sq = getSquare coords b
-                      newSq = Square (succ (value sq)) (solved sq)
-                      newBd = setSquare coords newSq b
-    in if solved sq
-        then b
+solveSq :: Board -> Int -> Board
+solveSq b s = let coords = getCoords s b
+                  sq = getSquare coords b
+                  newSq = Square (succ $ value sq) False
+                  newBd = setSquare coords newSq b
+    in if original sq
+        then if s == (length $ squares b) - 1
+            then setStatus b Complete
+            else b
         else if validSquare coords newBd
-            then if s >= (length $ squares b) - 1
-                then Board (width newBd) (height newBd) (squares newBd) Complete
-                else newBd
-            else if value newSq > (width b) * (height b)
-                then setSquare coords (Square 0 False) (Board (width newBd) (height newBd) (squares newBd) Broken)
-                else solveSquare newBd s
+            then if s == (length $ squares newBd) - 1
+                then setStatus newBd Complete
+                else setStatus newBd Incomplete
+            else if value newSq > ((width newBd) * (height newBd)) - 1
+                then setSquare coords (Square 0 False)
+                    (setStatus newBd Broken)
+                else solveSq newBd s
