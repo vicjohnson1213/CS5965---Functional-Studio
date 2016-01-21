@@ -1,9 +1,7 @@
 CC = ghc
 
-all: test
-
-test:
-	ghc solver.hs -prof -fprof-auto -fprof-cafs
+all:
+	ghc solver.hs
 	rm -rf *.hi *.o
 
 clean:
