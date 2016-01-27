@@ -1,6 +1,6 @@
 CC = ghc
 
-all: sol gen
+all: sol gen client
 
 sol: Solver.hs
 	$(CC) Solver.hs
@@ -10,9 +10,13 @@ gen: Generator.hs
 	$(CC) Generator.hs
 	rm -rf *.hi *.o
 
-web: Web.hs
-	$(CC) Web.hs
+client: Client.hs
+	$(CC) Client.hs
+	rm -rf *.hi *.o
+
+server: Server.hs
+	$(CC) Server.hs
 	rm -rf *.hi *.o
 
 clean:
-	rm -rf *.hi *.o Solver Generator Web
+	rm -rf *.hi *.o Solver Generator Client Server

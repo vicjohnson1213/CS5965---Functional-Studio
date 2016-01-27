@@ -78,7 +78,8 @@ getCols b = [getCol x b | x <- [0..((width b) * (width b) - 1)]]
 -- | getGroup returns group of the board at a given set of coordinates.
 getGroup :: (Int, Int) -> Board -> [Cell]
 getGroup (x, y) b = let rows = getRows b
-    in concat (map (\r -> take (width b) (drop ((width b) * x) r)) (take (height b) (drop ((height b) * y) rows)))
+    in concat (map (\r -> take (width b) (drop ((width b) * x) r))
+                   (take (height b) (drop ((height b) * y) rows)))
 
 -- | coordToIdx converts a set of coordinates to a list index for the board.
 coordToIdx :: (Int, Int) -> Board -> Int
