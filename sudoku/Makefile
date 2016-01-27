@@ -2,19 +2,19 @@ CC = ghc
 
 all: sol gen client
 
-sol: Solver.hs
+sol: Solver.hs Sudoku.hs
 	$(CC) Solver.hs
 	rm -rf *.hi *.o
 
-gen: Generator.hs
+gen: Generator.hs Sudoku.hs
 	$(CC) Generator.hs
 	rm -rf *.hi *.o
 
-client: Client.hs
+client: Client.hs Sudoku.hs
 	$(CC) Client.hs
 	rm -rf *.hi *.o
 
-server: Server.hs
+server: Server.hs Sudoku.hs
 	$(CC) Server.hs
 	rm -rf *.hi *.o
 

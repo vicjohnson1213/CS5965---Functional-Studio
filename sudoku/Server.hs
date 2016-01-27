@@ -1,7 +1,9 @@
 import Network (listenOn, withSocketsDo, accept, PortID(..), Socket)
 import System.Environment (getArgs)
-import System.IO (hSetBuffering, hGetLine, hPutStrLn, BufferMode(..), Handle)
+import System.IO (hSetBuffering, hGetLine, hClose, hPutStrLn, BufferMode(..), Handle)
 import Control.Concurrent (forkIO)
+import System.Random
+import Sudoku
 
 main :: IO()
 main = withSocketsDo $ do
@@ -15,10 +17,14 @@ sockHandler :: Socket -> IO()
 sockHandler sock = do
     (handle, _, _) <- accept sock
     hSetBuffering handle NoBuffering
-    forkIO $ commandProcessor handle
+    forkIO $ generateSudoku handle
     sockHandler sock
 
 generateSudoku :: Handle -> IO()
 generateSudoku handle = do
-    hPutStrLn handle "THIS IS A TEST STRING"
+    hGetLine handle
+    gen <- getStdGen
+    let b = generate gen
+    hPutStrLn handle (printUnsolved b)
+    hClose handle
 

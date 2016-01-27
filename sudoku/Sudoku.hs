@@ -2,6 +2,7 @@ module Sudoku (
     Cell(..),
     Board(..),
     buildBoard,
+    printUnsolved,
     printBoard,
     solve,
     generate
@@ -44,6 +45,14 @@ buildCell v = Cell v True
 convertEl :: String -> Int
 convertEl "_" = 0
 convertEl x = read x
+
+cellToString :: Char -> Char
+cellToString ' ' = ' '
+cellToString '0' = '_'
+cellToString x = x
+
+printUnsolved :: Board -> String
+printUnsolved bd = "3 3\n" ++ (map cellToString (printBoard bd))
 
 -- | printBoard converts a board into a more readable form.
 printBoard :: Board -> String
@@ -166,21 +175,44 @@ solveSq b s = let coords = idxToCoords s b
 
 
 
--- | generate creates a new random sudoku board.
-generate :: [(Int, Int)] -> Board
-generate l = let emptyBd = (map (\e -> Cell 0 False) [1..81])
-                 bd = generate' l (Board 3 3 emptyBd Incomplete) 25
-    in if isNothing (solve bd)
-        then Board 0 0 emptyBd Broken
-        else bd
+generate :: RandomGen g => g -> Board
+generate gen = let comp = fill gen
+    in poke gen 55 comp
 
--- | generate' attempts to put a new value in a random cell.
-generate' :: [(Int, Int)] -> Board -> Int -> Board
-generate' v b f = let (val,idx) = head v
-                      newCell = Cell val True
-                      newBd = setCell (idxToCoords idx b) newCell b
+-- | fill creates a new COMPLETE random sudoku board.
+fill :: RandomGen g => g -> Board
+fill gen = let emptyBd = (map (\e -> Cell 0 False) [1..81])
+               (bd, nextGen) = fill' gen (Board 3 3 emptyBd Incomplete) 30
+               solvedBd = solve bd
+    --in fromJust solvedBd
+    in if isNothing solvedBd
+        then fst $ fill' nextGen (Board 3 3 emptyBd Incomplete) 30
+        else fromJust solvedBd
+
+-- | fill' attempts to put a new value in a random cell.
+fill' :: RandomGen g => g -> Board -> Int -> (Board, g)
+fill' gen b f = let ((idx,val), nextGen) = newPair gen
+                    newCell = Cell val True
+                    newBd = setCell (idxToCoords idx b) newCell b
     in if f == 0
-        then b
+        then (b, nextGen)
         else if validBoard newBd
-            then generate' (tail v) newBd (pred f)
-            else generate' (tail v) b f
+            then fill' nextGen newBd (pred f)
+            else fill' nextGen b f
+
+poke :: RandomGen g => g -> Int -> Board -> Board
+poke gen ful bd = let (idx, gen') = randInRng gen (0,80)
+                      newBd = setCell (idxToCoords idx bd) (Cell 0 False) bd
+    in if ful == 0
+        then newBd
+        else if (value $ getCell (idxToCoords idx bd) bd) == 0
+            then poke gen' ful newBd
+            else poke gen' (pred ful) newBd
+
+randInRng :: RandomGen g => g -> (Int, Int) -> (Int, g)
+randInRng gen rng = randomR rng gen
+
+newPair :: RandomGen g => g -> ((Int, Int), g)
+newPair gen = let (idx, gen') = randInRng gen (0,80)
+                  (val, gen'') = randInRng gen' (1,9)
+    in ((idx, val), gen'')
