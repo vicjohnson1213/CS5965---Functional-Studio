@@ -23,7 +23,7 @@ sockHandler sock = do
 generateSudoku :: Handle -> IO()
 generateSudoku handle = do
     hGetLine handle
-    gen <- getStdGen
+    gen <- newStdGen
     let b = generate gen
     hPutStrLn handle (printUnsolved b)
     hClose handle

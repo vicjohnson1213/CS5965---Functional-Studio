@@ -182,11 +182,11 @@ generate gen = let comp = fill gen
 -- | fill creates a new COMPLETE random sudoku board.
 fill :: RandomGen g => g -> Board
 fill gen = let emptyBd = (map (\e -> Cell 0 False) [1..81])
-               (bd, nextGen) = fill' gen (Board 3 3 emptyBd Incomplete) 30
+               (bd, nextGen) = fill' gen (Board 3 3 emptyBd Incomplete) 20
                solvedBd = solve bd
     --in fromJust solvedBd
     in if isNothing solvedBd
-        then fst $ fill' nextGen (Board 3 3 emptyBd Incomplete) 30
+        then fst $ fill' nextGen (Board 3 3 emptyBd Incomplete) 20
         else fromJust solvedBd
 
 -- | fill' attempts to put a new value in a random cell.

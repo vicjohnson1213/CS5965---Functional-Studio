@@ -1,5 +1,5 @@
-sudoku/Solver
-sudoku/Generator
-sudoku/Client
-sudoku/Server
-sudoku/*.txt
+sudoku*/Solver
+sudoku*/Generator
+sudoku*/Client
+sudoku*/Server
+sudoku*/*.txt
