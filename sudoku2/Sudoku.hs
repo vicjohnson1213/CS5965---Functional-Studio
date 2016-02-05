@@ -1,197 +1,109 @@
-module Sudoku (
-    Cell(..),
-    Board(..),
-    toVals,
-    buildBoard,
-    printUnsolved,
-    printBoard,
-    possibilitiesForCell,
-    possibilitiesForCellRow,
-    possibilitiesForCellCol,
-    --possibilitiesForCellGroup,
-    fillAutomatic,
-    initialFill,
-    countUnsolved,
-    getGroupIdxs
-) where
+module Sudoku where
 
 import Data.List
 import Data.List.Split
 import Data.Char
-import Data.Maybe
 
--- | The status of the board.
-data Status = Complete | Incomplete | Broken deriving (Show, Eq)
-
--- | A Cell represents a single cell of the board.
 data Cell = Cell {
-    value :: Int,
-    original :: Bool
-} deriving (Show)
+    orig :: Bool,
+    val :: Int
+}
 
--- | A board represents the relevant information of the Sudoku board.
+instance Show Cell where
+    show (Cell or v) = "(" ++ show v ++ ", " ++ show or ++ ")"
+
+instance Eq Cell where
+    left == right = val left == val right
+
 data Board = Board {
     width :: Int,
     height :: Int,
-    cells :: [Cell],
-    status :: Status
-} deriving (Show)
+    cells :: [Cell]
+}
 
--- | buildBoard creates a new board from a list of characters describing the board.
-buildBoard :: [String] -> Board
-buildBoard vs = let w:h:s = map convertEl vs
-    in Board w h (map buildCell s) Incomplete
+instance Show Board where
+    show (Board w h cls) = intercalate "\n\n" $
+                          map (intercalate "\n") $
+                          chunksOf h $
+                          map (intersperse ' ') $
+                          map (intercalate " ") $
+                          map (chunksOf w) $
+                          chunksOf (w^2) $
+                          map (intToDigit . val) cls
 
--- | buildCell creates a single cell from an integer
-buildCell :: Int -> Cell
-buildCell 0 = Cell 0 False
-buildCell v = Cell v True
+mkCell :: String -> Cell
+mkCell "_" = Cell False 0
+mkCell val = Cell True (read val :: Int)
 
--- | convertEl turns a character to it's corresponding number, handling 
---   underscores appropriately.
-convertEl :: String -> Int
-convertEl "_" = 0
-convertEl x = read x
+buildBoard :: String -> Board
+buildBoard str = Board fw fh cls
+    where w:h:rst = words str
+          fw = read w :: Int
+          fh = read h :: Int
+          cls = map mkCell rst
 
-cellToString :: Char -> Char
-cellToString ' ' = ' '
-cellToString '0' = '_'
-cellToString x = x
-
-printUnsolved :: Board -> String
-printUnsolved bd = "3 3\n" ++ (map cellToString (printBoard bd))
-
--- | printBoard converts a board into a more readable form.
-printBoard :: Board -> String
-printBoard b = printBoard' (toVals (cells b)) ((width b)^2)
-
--- | printBoard' is a helper to make a board more readable.
-printBoard' :: [Int] -> Int -> String
-printBoard' [] _ = ""
-printBoard' i s = let (x, xs) = splitAt s i
-    in (intersperse ' ' (map intToDigit x)) ++ "\n" ++ (printBoard' xs s)
-
--- | toVals weeds out all board data besides the number in each cell.
-toVals :: [Cell] -> [Int]
-toVals s = map value s
-
--- | getRow returns the row of the board at a given index.
-getRow :: Int -> Board -> [Cell]
-getRow n b = (chunksOf 9 (cells b))!!n
-
--- | getRows returns a list of all rows in the board
 getRows :: Board -> [[Cell]]
-getRows b = chunksOf 9 (cells b)
+getRows (Board w _ cls) = chunksOf (w^2) cls
 
--- | getCol returns the column of the board at a given index.
+getRow :: Int -> Board -> [Cell]
+getRow r bd = (getRows bd)!!r
+
 getCol :: Int -> Board -> [Cell]
-getCol n b = [(cells b)!!x | x <- take ((height b) * (height b)) [n, n + (width b) * (width b) ..]]
+getCol c bd = map (!!c) $ getRows bd
 
--- | getCols returns a list of all columns in the board
-getCols :: Board -> [[Cell]]
-getCols b = [getCol x b | x <- [0..((width b) * (width b) - 1)]]
-
--- | getGroup returns group of the board at a given set of coordinates.
 getGroup :: (Int, Int) -> Board -> [Cell]
-getGroup crds b = let rows = getRows b
-    in map (\c -> getCell c b) (getGroupIdxs crds b)
+getGroup (x, y) bd@(Board w h _) = concat $
+                                   map (!!newX) $
+                                   map (chunksOf w) $
+                                   (chunksOf h $ getRows bd)!!newY
+    where newX = x `div` w
+          newY = y `div` h
 
-getGroupIdxs :: (Int, Int) -> Board -> [(Int, Int)]
-getGroupIdxs (x, y) b = let allCoords = chunksOf 9 [(x, y) | y <- [0..((height b)^2 - 1)],
-                                                             x <- [0..((width b)^2 - 1)]]
-    in concat [r!!x | r <- map (chunksOf 3)
-                        [allCoords!!x | x <- [(y * (height b))..((y * (height b)) + 2)]]]
-
--- | coordToIdx converts a set of coordinates to a list index for the board.
-coordToIdx :: (Int, Int) -> Board -> Int
-coordToIdx (x, y) b = y * (width b) * (width b) + x
-
--- | idxToCoords converts a list index into a set of coordinates.
-idxToCoords :: Int -> Board -> (Int, Int)
-idxToCoords i b = (mod i ((width b) * (width b)), div i ((width b) * (width b)))
-
--- | getCell returns the cell at a particular set of coordinates.
 getCell :: (Int, Int) -> Board -> Cell
-getCell c b = (cells b)!!(coordToIdx c b)
+getCell cds@(x, y) bd@(Board w _ cls) = cls!!idx
+    where idx = coordsToIdx cds bd
 
--- | setCell updates the cell at a particular set of coordinates and returns the
---   new board.
 setCell :: (Int, Int) -> Cell -> Board -> Board
-setCell c s b = let (left,_:right) = splitAt (coordToIdx c b) (cells b)
-    in Board (width b) (height b) (left ++ (s:right)) (status b)
+setCell cds cell bd@(Board w h cls) = newBd
+    where idx = coordsToIdx cds bd
+          (left, _:right) = splitAt idx $ cells bd
+          newBd = Board w h (left ++ [cell] ++ right)
 
--- | setStatus returns a new board with a given status
-setStatus :: Board -> Status -> Board
-setStatus b s = Board (width b) (height b) (cells b) s
+coordsToIdx :: (Int, Int) -> Board -> Int
+coordsToIdx (x, y) (Board w h _) = y * w^2 + x
 
--- | validCell checks whether a cell value is legal per the rules of sudoku.
-validCell :: (Int, Int) -> Board -> Bool
-validCell (x, y) b = let sq = (cells b)!!(coordToIdx (x, y) b)
-    in ((value sq) >= 1 && (value sq) <= (width b) * (height b))
-        && notElem (value sq) (delete (value sq) 
-            (map (\s -> (value s)) (getGroup ((div x (height b)), (div y (width b))) b)))
-                && notElem (value sq) (delete (value sq) (map (\s -> (value s)) (getRow y b)))
-                && notElem (value sq) (delete (value sq) (map (\s -> (value s)) (getCol x b)))
+idxToCoords :: Int -> Board -> (Int, Int)
+idxToCoords idx (Board w _ _) = (idx `mod` w^2, idx `div` w^2)
 
+validExistingCell :: (Int, Int) -> Board -> Bool
+validExistingCell cds bd = validCell cds cell bd 3
+    where cell = getCell cds bd
 
+validNewCell :: (Int, Int) -> Cell -> Board -> Bool
+validNewCell cds cell bd = validCell cds cell bd 0
+
+validCell :: (Int, Int) -> Cell -> Board -> Int -> Bool
+validCell cds@(x, y) cell bd count = valCount == count
+    where valCount = length . filter (==cell) $
+                     concat [getRow y bd, getCol x bd, getGroup cds bd]
+
+countSolved :: Board -> Int
+countSolved (Board _ _ cls) = length $ filter (/=empty) cls
+    where empty = Cell False 0
 
 possibilitiesForCell :: (Int, Int) -> Board -> [Cell]
-possibilitiesForCell c bd = let idx = coordToIdx c
-    in possibilitiesForCell' c bd 1 []
+possibilitiesForCell cds@(x, y) bd@(Board w h cls)
+    | orig cell = [cell]
+    | otherwise = [Cell False c | c <- [1..w*h], validNewCell cds (Cell False c) bd]
+        where cell = getCell cds bd
 
-possibilitiesForCell' :: (Int, Int) -> Board -> Int -> [Cell] -> [Cell]
-possibilitiesForCell' c bd val ps = let oldCell = getCell c bd
-                                        newCell = Cell val False
-                                        newBd = setCell c newCell bd
-    in if (value oldCell) /= 0
-        then [oldCell]
-        else if val > 9
-            then ps
-            else if validCell c newBd
-                then possibilitiesForCell' c bd (succ val) (ps ++ [newCell])
-                else possibilitiesForCell' c bd (succ val) ps
+possibilitiesForCellsInRow :: Int -> Board -> [[Cell]]
+possibilitiesForCellsInRow row bd@(Board w _ _) = map (\c -> possibilitiesForCell c bd) [(x, row) | x <- [0..w^2 - 1]]
 
-possibilitiesForCellRow :: Int -> Board -> [[Cell]]
-possibilitiesForCellRow y bd = map (\x -> possibilitiesForCell (x, y) bd) [0..(((width bd)^2) - 1)]
+possibilitiesForCellsInCol :: Int -> Board -> [[Cell]]
+possibilitiesForCellsInCol col bd@(Board _ h _) = map (\c -> possibilitiesForCell c bd) [(col, y) | y <- [0..h^2 - 1]]
 
-possibilitiesForCellCol :: Int -> Board -> [[Cell]]
-possibilitiesForCellCol x bd = map (\y -> possibilitiesForCell (x, y) bd) [0..(((height bd)^2) - 1)]
-
-possibilitiesForCellGroup :: (Int, Int) -> Board -> [[Cell]]
-possibilitiesForCellGroup c bd = map (\g -> possibilitiesForCell g bd) (getGroupIdxs c bd)
-
-fillAutomatic :: Board -> Board
-fillAutomatic bd = fillAutomatic' bd 0
-
-fillAutomatic' :: Board -> Int -> Board
-fillAutomatic' bd idx = let coords = idxToCoords idx bd
-                            poss = possibilitiesForCell coords bd
-    in if idx >= (length $ cells bd)
-        then bd
-        else if length poss == 1
-            then fillAutomatic' (setCell coords (head poss) bd) (succ idx)
-            else fillAutomatic' bd (succ idx)
-
-countUnsolved :: Board -> Int
-countUnsolved bd = countUnsolved' 0 0 bd
-
-countUnsolved' :: Int -> Int -> Board -> Int
-countUnsolved' count idx bd = let cell = getCell (idxToCoords idx bd) bd
-    in if idx >= (length $ cells bd)
-        then count
-        else if (value cell) == 0
-            then countUnsolved' (succ count) (succ idx) bd
-            else countUnsolved' count (succ idx) bd
-
---guessCell :: (Int, Int) -> Board -> Board
-
-initialFill :: Board -> Board
-initialFill bd = initialFill' (countUnsolved bd) bd
-
-initialFill' :: Int -> Board -> Board
-initialFill' prev bd = let newBd = fillAutomatic bd
-                           newCount = countUnsolved newBd
-    in if newCount == prev
-        then bd
-        else initialFill' newCount newBd
-
+removeNth :: Int -> [a] -> [a]
+removeNth _ [] = []
+removeNth idx lst = fst ++ snd
+    where (fst, _:snd) = splitAt idx lst
