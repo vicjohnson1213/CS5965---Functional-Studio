@@ -9,6 +9,6 @@ main = do
     let bd = buildBoard contents
     print bd
     putStrLn "\n"
-    --print $ getGroup (1,1) bd
+    --print $ getGroup (0,0) bd
     putStrLn "\n"
-    print $ possibilitiesForCellsInCol 0 bd
+    print $ possibilitiesForCellsInGroup (0,0) bd

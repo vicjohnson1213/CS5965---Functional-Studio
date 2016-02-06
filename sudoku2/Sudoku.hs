@@ -103,6 +103,18 @@ possibilitiesForCellsInRow row bd@(Board w _ _) = map (\c -> possibilitiesForCel
 possibilitiesForCellsInCol :: Int -> Board -> [[Cell]]
 possibilitiesForCellsInCol col bd@(Board _ h _) = map (\c -> possibilitiesForCell c bd) [(col, y) | y <- [0..h^2 - 1]]
 
+possibilitiesForCellsInGroup :: (Int, Int) -> Board -> [[Cell]]
+possibilitiesForCellsInGroup (x, y) bd@(Board w h _) = map (flip possibilitiesForCell bd) $
+                                                       concat . transpose $
+                                                       map (!!newX) $
+                                                       map (chunksOf w) $
+                                                       (!!newY) $
+                                                       chunksOf h $
+                                                       chunksOf (w^2) idxs
+    where newX = x `div` w
+          newY = y `div` h
+          idxs = [(r, c) | r <- [0..h^2-1], c <- [0..w^2-1]]
+
 removeNth :: Int -> [a] -> [a]
 removeNth _ [] = []
 removeNth idx lst = fst ++ snd
