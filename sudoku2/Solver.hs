@@ -7,8 +7,7 @@ main = do
     contents <- readFile $ "boards/small.txt"
     --contents <- readFile $ "boards/hard.txt"
     let bd = buildBoard contents
+    let newBd = fillObviousChoices bd
     print bd
     putStrLn "\n"
-    --print $ getGroup (0,0) bd
-    putStrLn "\n"
-    print $ possibilitiesForCellsInGroup (0,0) bd
+    print $ fillObviousChoices newBd

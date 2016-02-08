@@ -94,6 +94,7 @@ countSolved (Board _ _ cls) = length $ filter (/=empty) cls
 possibilitiesForCell :: (Int, Int) -> Board -> [Cell]
 possibilitiesForCell cds@(x, y) bd@(Board w h cls)
     | orig cell = [cell]
+    | val cell /= 0 = [cell]
     | otherwise = [Cell False c | c <- [1..w*h], validNewCell cds (Cell False c) bd]
         where cell = getCell cds bd
 
@@ -114,6 +115,28 @@ possibilitiesForCellsInGroup (x, y) bd@(Board w h _) = map (flip possibilitiesFo
     where newX = x `div` w
           newY = y `div` h
           idxs = [(r, c) | r <- [0..h^2-1], c <- [0..w^2-1]]
+
+fillObviousChoices :: Board -> Board
+fillObviousChoices bd@(Board w h _)
+    | solved == w^2 * h^2 = bd
+    | solved == newSolved = bd -- will call a "narrow by possibilities thing next"
+    | otherwise = fillObviousChoices newBd
+        where solved = countSolved bd
+              newBd = fillObviousChoices' bd 0
+              newSolved = countSolved newBd
+
+--fillObviousChoices :: Board -> Board
+--fillObviousChoices bd = fillObviousChoices' bd 0
+
+fillObviousChoices' :: Board -> Int -> Board
+fillObviousChoices' bd@(Board w h _) idx
+    | idx >= w^2 * h^2 = bd
+    | orig cell || length poss /= 1 = fillObviousChoices' bd $ succ idx
+    | otherwise = fillObviousChoices' newBd $ succ idx
+        where cds = idxToCoords idx bd
+              cell = getCell cds bd
+              poss = possibilitiesForCell cds bd
+              newBd = setCell cds (head poss) bd
 
 removeNth :: Int -> [a] -> [a]
 removeNth _ [] = []
