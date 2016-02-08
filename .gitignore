@@ -3,3 +3,5 @@ sudoku*/Generator
 sudoku*/Client
 sudoku*/Server
 sudoku*/*.txt
+**/*.hi
+**/*.o
