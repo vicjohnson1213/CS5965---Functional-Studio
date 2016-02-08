@@ -99,10 +99,12 @@ possibilitiesForCell cds@(x, y) bd@(Board w h cls)
         where cell = getCell cds bd
 
 possibilitiesForCellsInRow :: Int -> Board -> [[Cell]]
-possibilitiesForCellsInRow row bd@(Board w _ _) = map (\c -> possibilitiesForCell c bd) [(x, row) | x <- [0..w^2 - 1]]
+possibilitiesForCellsInRow row bd@(Board w _ _) =
+    map (flip possibilitiesForCell bd) [(x, row) | x <- [0..w^2 - 1]]
 
 possibilitiesForCellsInCol :: Int -> Board -> [[Cell]]
-possibilitiesForCellsInCol col bd@(Board _ h _) = map (\c -> possibilitiesForCell c bd) [(col, y) | y <- [0..h^2 - 1]]
+possibilitiesForCellsInCol col bd@(Board _ h _) =
+    map (flip possibilitiesForCell bd) [(col, y) | y <- [0..h^2 - 1]]
 
 possibilitiesForCellsInGroup :: (Int, Int) -> Board -> [[Cell]]
 possibilitiesForCellsInGroup (x, y) bd@(Board w h _) = map (flip possibilitiesForCell bd) $
@@ -118,25 +120,46 @@ possibilitiesForCellsInGroup (x, y) bd@(Board w h _) = map (flip possibilitiesFo
 
 fillObviousChoices :: Board -> Board
 fillObviousChoices bd@(Board w h _)
-    | solved == w^2 * h^2 = bd
-    | solved == newSolved = bd -- will call a "narrow by possibilities thing next"
-    | otherwise = fillObviousChoices newBd
-        where solved = countSolved bd
-              newBd = fillObviousChoices' bd 0
-              newSolved = countSolved newBd
-
---fillObviousChoices :: Board -> Board
---fillObviousChoices bd = fillObviousChoices' bd 0
+    | solved == w^2 * h^2  = bd
+    | solved == newSolved  = findOnlyOptions bd
+    | otherwise            = fillObviousChoices newBd
+        where solved     = countSolved bd
+              newBd      = fillObviousChoices' bd 0
+              newSolved  = countSolved newBd
 
 fillObviousChoices' :: Board -> Int -> Board
 fillObviousChoices' bd@(Board w h _) idx
-    | idx >= w^2 * h^2 = bd
-    | orig cell || length poss /= 1 = fillObviousChoices' bd $ succ idx
-    | otherwise = fillObviousChoices' newBd $ succ idx
-        where cds = idxToCoords idx bd
-              cell = getCell cds bd
-              poss = possibilitiesForCell cds bd
-              newBd = setCell cds (head poss) bd
+    | idx >= w^2 * h^2               = bd
+    | orig cell || length poss /= 1  = fillObviousChoices' bd $ succ idx
+    | otherwise                      = fillObviousChoices' newBd $ succ idx
+        where cds    = idxToCoords idx bd
+              cell   = getCell cds bd
+              poss   = possibilitiesForCell cds bd
+              newBd  = setCell cds (head poss) bd
+
+findOnlyOptions :: Board -> Board
+findOnlyOptions bd@(Board w h _)
+    | solved == w^2 * h^2  = bd
+    | solved == newSolved  = bd -- will call a "narrow by possibilities thing next"
+    | otherwise            = findOnlyOptions newBd
+        where solved     = countSolved bd
+              newBd      = findOnlyOptions' bd 0
+              newSolved  = countSolved newBd
+
+
+findOnlyOptions' :: Board -> Int -> Board
+findOnlyOptions' bd@(Board w h cls) idx
+    | idx >= w^2 * h^2                   = bd
+    | orig cell || length cellPoss /= 1  = findOnlyOptions' bd $ succ idx
+    | otherwise                          = findOnlyOptions' newBd $ succ idx
+        where cds@(r, c)  = idxToCoords idx bd
+              groupIdx    = (r `mod` w) + (c `mod` h)
+              cell        = getCell cds bd
+              rowPoss     = concat . (removeNth c) $ possibilitiesForCellsInRow r bd
+              colPoss     = concat . (removeNth r) $ possibilitiesForCellsInCol c bd
+              groupPoss   = concat . (removeNth groupIdx) $ possibilitiesForCellsInGroup cds bd
+              cellPoss    = (possibilitiesForCell cds bd) \\ (rowPoss ++ colPoss ++ groupPoss)
+              newBd       = setCell cds (head cellPoss) bd
 
 removeNth :: Int -> [a] -> [a]
 removeNth _ [] = []
