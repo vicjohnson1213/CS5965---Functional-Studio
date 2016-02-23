@@ -1,64 +1,65 @@
 import Data.List.Split
+import Data.Maybe
 
-data Card = Treasure {
-    cost  :: Int,
-    value :: Int
-} | Victory {
-    cost :: Int,
-    points :: Int
-} | Action {
-    cost :: Int
+data Treasure = Copper | Silver | Gold deriving (Show, Read, Eq, Ord)
+data Victory  = Estate | Duchy | Province deriving (Show, Read, Eq, Ord)
+data Action   = Mine deriving (Show, Read, Eq)
+
+data Card = Treasure Treasure | Victory Victory | Action Action deriving (Show, Read, Eq)
+
+data Play = Act {
+    action :: Action,
+    from   :: Treasure,
+    to     :: Treasure
 } deriving (Show, Read, Eq)
 
-copper = Treasure { cost = 0, value = 1 }
-silver = Treasure { cost = 3, value = 2 }
-gold   = Treasure { cost = 6, value = 3 }
-
-estate   = Victory { cost = 2, points = 1 }
-duchy    = Victory { cost = 5, points = 3 }
-province = Victory { cost = 8, points = 6 }
-
-mine = Action { cost = 5 }
-
 data State = State {
-    actions  :: Int,
-    buys     :: Int,
-    coins    :: Int,
-    players  :: [String],
-    deck     :: [Card],
-    discards :: [Card],
-    hand     :: [Card],
-    plays    :: [Card],
-    supply   :: [Card],
-    trash    :: [Card]
+    actionsLeft :: Int,
+    buysLeft    :: Int,
+    coinsLeft   :: Int,
+    players     :: [String],
+    deck        :: [Card],
+    discards    :: [Card],
+    hand        :: [Card],
+    plays       :: [Card],
+    supply      :: [Card],
+    trash       :: [Card]
 } deriving (Show, Read)
 
-testState = State {
-    actions = 1,
-    buys = 1,
-    coins = 1,
-    players = ["Test1", "Test2", "Test3"],
-    deck = [copper, copper, copper, estate, estate, mine],
-    discards = [duchy, estate, copper],
-    hand = [copper, copper, copper, silver, estate],
-    plays = [],
-    supply = [mine, mine, mine],
-    trash = []
-}
+hasCopper :: State -> Bool
+hasCopper state = any (== Treasure Copper) $ hand state
 
--- parseCard :: String -> Card
--- parseCard "copper"   = copper
--- parseCard "silver"   = silver
--- parseCard "gold"     = gold
--- parseCard "estate"   = estate
--- parseCard "duchy"    = duchy
--- parseCard "province" = province
--- parseCard "mine"     = mine
--- parseCard c          = error $ "Not a valid card: " ++ show c
+hasSilver :: State -> Bool
+hasSilver state = any (== Treasure Silver) $ hand state
 
--- parseState :: String -> [String]
--- parseState str = words str
+hasMine :: State -> Bool
+hasMine state = any (== Action Mine) $ hand state
+
+chooseMineCard :: State -> Maybe (Treasure, Treasure)
+chooseMineCard state
+    | hasSilver state = Just (Silver, Gold)
+    | hasCopper state = Just (Copper, Silver)
+    | otherwise       = Nothing
+
+tryAction :: State -> Maybe Play
+tryAction state
+    | actionsLeft state == 0 = Nothing
+    | isNothing chosenCards  = Nothing
+    | otherwise              = Just $ Act Mine (fst $ fromJust chosenCards) (snd $ fromJust chosenCards)
+        where chosenCards = chooseMineCard state
 
 main = do
-    -- print $ map parseCard ["copper", "province", "gold", "duchy"]
-    print $ testState
+    print $ fromJust $ tryAction testState
+
+testState = State {
+    actionsLeft  = 1,
+    buysLeft     = 1,
+    coinsLeft    = 1,
+    players      = ["Test1", "Test2", "Test3"],
+    deck         = [],
+    discards     = [],
+    hand         = [Treasure Copper, Treasure Silver, Action Mine, Victory Estate, Victory Duchy],
+    supply       = [Treasure Gold],
+    plays        = [],
+    trash        = []
+}
