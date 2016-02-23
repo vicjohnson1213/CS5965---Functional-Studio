@@ -3,7 +3,7 @@ main = do
 
 run = do
     line <- getLine
-    print $ "Line: '" ++ line ++ "'"
+    print $ words $ tail . init $ line
 
     if line == "exit"
         then return line

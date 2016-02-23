@@ -1,53 +1,64 @@
-{-# LANGUAGE ExistentialQuantification #-}
+import Data.List.Split
 
-class Card_ a where
-    cost :: a -> Int
+data Card = Treasure {
+    cost  :: Int,
+    value :: Int
+} | Victory {
+    cost :: Int,
+    points :: Int
+} | Action {
+    cost :: Int
+} deriving (Show, Read, Eq)
 
-class Valuable a where
-    value :: a -> Int
+copper = Treasure { cost = 0, value = 1 }
+silver = Treasure { cost = 3, value = 2 }
+gold   = Treasure { cost = 6, value = 3 }
 
+estate   = Victory { cost = 2, points = 1 }
+duchy    = Victory { cost = 5, points = 3 }
+province = Victory { cost = 8, points = 6 }
 
-data Treasure = Copper | Silver | Gold deriving (Eq, Ord, Enum, Show, Read)
+mine = Action { cost = 5 }
 
-instance Card_ Treasure where
-    cost Copper = 0
-    cost Silver = 3
-    cost Gold   = 6
+data State = State {
+    actions  :: Int,
+    buys     :: Int,
+    coins    :: Int,
+    players  :: [String],
+    deck     :: [Card],
+    discards :: [Card],
+    hand     :: [Card],
+    plays    :: [Card],
+    supply   :: [Card],
+    trash    :: [Card]
+} deriving (Show, Read)
 
-instance Valuable Treasure where
-    value Copper = 1
-    value Silver = 2
-    value Gold   = 3
+testState = State {
+    actions = 1,
+    buys = 1,
+    coins = 1,
+    players = ["Test1", "Test2", "Test3"],
+    deck = [copper, copper, copper, estate, estate, mine],
+    discards = [duchy, estate, copper],
+    hand = [copper, copper, copper, silver, estate],
+    plays = [],
+    supply = [mine, mine, mine],
+    trash = []
+}
 
+-- parseCard :: String -> Card
+-- parseCard "copper"   = copper
+-- parseCard "silver"   = silver
+-- parseCard "gold"     = gold
+-- parseCard "estate"   = estate
+-- parseCard "duchy"    = duchy
+-- parseCard "province" = province
+-- parseCard "mine"     = mine
+-- parseCard c          = error $ "Not a valid card: " ++ show c
 
-data Victory = Estate | Duchy | Province deriving (Eq, Ord, Enum, Show, Read)
-
-instance Card_ Victory where
-    cost Estate   = 2
-    cost Duchy    = 5
-    cost Province = 8
-
-instance Valuable Victory where
-    value Estate   = 1
-    value Duchy    = 3
-    value Province = 6
-
-data Action = Mine deriving (Eq, Ord, Enum, Show, Read)
-
-instance Card_ Action where
-    cost Mine = 5
-
-
-data Card = forall a. Card_ a => Card a
-instance Card_ Card where
-    cost (Card c) = cost c
-
-
-getCost :: Card -> Int
-getCost cd = cost cd
-
-getVals :: [Card] -> [Int]
-getVals cards = map cost cards
+-- parseState :: String -> [String]
+-- parseState str = words str
 
 main = do
-    print $ getVals [Card Copper, Card Silver, Card Estate]
+    -- print $ map parseCard ["copper", "province", "gold", "duchy"]
+    print $ testState
