@@ -1,7 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
-{--}
-
 -- | Define a general class defining what each instantiating class should implement
 class Shape_ a where
     perimeter :: a -> Double

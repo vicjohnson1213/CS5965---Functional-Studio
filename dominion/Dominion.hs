@@ -37,6 +37,12 @@ data State = State {
     trash       :: [Card]
 } deriving (Show, Read)
 
+data Notification = Move {
+    state :: State
+} | Moved {
+    state :: State
+} deriving (Show)
+
 getCost :: Card -> Int
 getCost (Treasure Copper)  = 0
 getCost (Treasure Silver)  = 3
@@ -45,6 +51,10 @@ getCost (Victory Estate)   = 2
 getCost (Victory Duchy)    = 5
 getCost (Victory Province) = 8
 getCost (Action Mine)      = 5
+
+isMove :: Notification -> Bool
+isMove (Move _) = True
+isMove _        = False
 
 -- | Check to see if a specified set of cards contains a certian card
 hasCard :: Card -> [Card] -> Bool
@@ -61,10 +71,7 @@ isTreasure _            = False
 
 -- | Check whether or not a set of cards has a Treasure card in it
 hasTreasure :: [Card] -> Bool
-hasTreasure [] = False
-hasTreasure (x:xs)
-    | isTreasure x = True
-    | otherwise    = hasTreasure xs
+hasTreasure cards = any isTreasure cards
 
 -- | Filter out any non-treasure cards from a set of cards
 getTreasure :: [Card] -> [Card]
@@ -74,13 +81,16 @@ getTreasure cards = filter isTreasure cards
     -- to mine from Copper -> Silver or Silver -> Gold
 chooseMineCard :: State -> Maybe (Card, Card)
 chooseMineCard state
-    | silverInHand && goldInSupply   = Just (Treasure Silver, Treasure Gold)
-    | copperInHand && silverInSupply = Just (Treasure Copper, Treasure Silver)
-    | otherwise                      = Nothing
-        where copperInHand   = hasCard (Treasure Copper) $ hand state
+    | hasMine && silverInHand && goldInSupply   = Just (Treasure Silver, Treasure Gold)
+    | hasMine && copperInHand && silverInSupply = Just (Treasure Copper, Treasure Silver)
+    | otherwise                                 = Nothing
+        where hasMine        = hasCard (Action Mine) $ hand state
+              copperInHand   = hasCard (Treasure Copper) $ hand state
               silverInHand   = hasCard (Treasure Silver) $ hand state
               silverInSupply = hasCard (Treasure Silver) $ supply state
               goldInSupply   = hasCard (Treasure Gold) $ supply state
+
+-- check for mine card
 
 -- | Try to perform an action, if there are no more actions, then do nothing, or
     -- if no actions are valid, then do nothing

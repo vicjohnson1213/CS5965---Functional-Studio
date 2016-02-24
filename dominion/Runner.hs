@@ -2,11 +2,12 @@ import Dominion
 
 main = do
     putStrLn ""
-    print $ move cleanState
-    print $ move cleanCardState
+    -- print $ move cleanState
+    -- print $ move cleanCardState
     -- print $ move mineState
     -- print $ move addCopperState
     -- print $ move buyProvinceState
+    print $ move noMineState
     -- print $ move buyMineState
     -- print $ move buyDuchyState
 
@@ -71,6 +72,19 @@ buyProvinceState = State {
     discards     = [],
     hand         = [],
     supply       = [Victory Estate, Victory Duchy, Victory Province],
+    plays        = [],
+    trash        = []
+}
+
+noMineState = State {
+    actionsLeft  = 1,
+    buysLeft     = 0,
+    coinsLeft    = 0,
+    players      = [],
+    deck         = [],
+    discards     = [],
+    hand         = [Treasure Copper, Treasure Silver],
+    supply       = [Action Mine, Treasure Gold],
     plays        = [],
     trash        = []
 }
