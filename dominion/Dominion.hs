@@ -1,8 +1,10 @@
+module Dominion where
+
 import Data.List.Split
 import Data.Maybe
 
-data Treasure = Copper | Silver | Gold deriving (Show, Read, Eq, Ord)
-data Victory  = Estate | Duchy | Province deriving (Show, Read, Eq, Ord)
+data Treasure = Copper | Silver | Gold deriving (Show, Read, Eq)
+data Victory  = Estate | Duchy | Province deriving (Show, Read, Eq)
 data Action   = Mine deriving (Show, Read, Eq)
 
 data Card = Treasure Treasure |
@@ -12,15 +14,15 @@ data Card = Treasure Treasure |
 
 data Play = Act {
     action :: Action,
-    from   :: Treasure,
-    to     :: Treasure
+    from   :: Card,
+    to     :: Card
 } | Add {
-    addCard :: Treasure
+    addCard :: Card
 } | Buy {
     buyCard :: Card
 } | Clean {
     cleanCard :: Maybe Card
-}deriving (Show, Read, Eq)
+} deriving (Show, Read, Eq)
 
 data State = State {
     actionsLeft :: Int,
@@ -44,39 +46,44 @@ getCost (Victory Duchy)    = 5
 getCost (Victory Province) = 8
 getCost (Action Mine)      = 5
 
+-- | Check to see if a specified set of cards contains a certian card
 hasCard :: Card -> [Card] -> Bool
 hasCard card cards = any (== card) cards
 
+-- | Count the number of a certain card in a set of cards
 cardCount :: Card -> [Card] -> Int
 cardCount card cards = length $ filter (== card) cards
 
-toTreasure :: Card -> Maybe Treasure
-toTreasure (Treasure tres) = Just $ tres
-toTreasure _               = Nothing
-
+-- | Check whether or not a given card is a Treasure card
 isTreasure :: Card -> Bool
 isTreasure (Treasure _) = True
 isTreasure _            = False
 
+-- | Check whether or not a set of cards has a Treasure card in it
 hasTreasure :: [Card] -> Bool
 hasTreasure [] = False
 hasTreasure (x:xs)
     | isTreasure x = True
     | otherwise    = hasTreasure xs
 
-getTreasure :: [Card] -> [Treasure]
-getTreasure cards = map (fromJust . toTreasure) $ filter isTreasure cards
+-- | Filter out any non-treasure cards from a set of cards
+getTreasure :: [Card] -> [Card]
+getTreasure cards = filter isTreasure cards
 
-chooseMineCard :: State -> Maybe (Treasure, Treasure)
+-- | Determine whether or not a mine can happen, if it can, then choose whether
+    -- to mine from Copper -> Silver or Silver -> Gold
+chooseMineCard :: State -> Maybe (Card, Card)
 chooseMineCard state
-    | silverInHand && goldInSupply   = Just (Silver, Gold)
-    | copperInHand && silverInSupply = Just (Copper, Silver)
+    | silverInHand && goldInSupply   = Just (Treasure Silver, Treasure Gold)
+    | copperInHand && silverInSupply = Just (Treasure Copper, Treasure Silver)
     | otherwise                      = Nothing
-        where copperInHand   = hasCard (Treasure Copper) (hand state)
-              silverInHand   = hasCard (Treasure Silver) (hand state)
-              silverInSupply = hasCard (Treasure Silver) (supply state)
-              goldInSupply   = hasCard (Treasure Gold) (supply state)
+        where copperInHand   = hasCard (Treasure Copper) $ hand state
+              silverInHand   = hasCard (Treasure Silver) $ hand state
+              silverInSupply = hasCard (Treasure Silver) $ supply state
+              goldInSupply   = hasCard (Treasure Gold) $ supply state
 
+-- | Try to perform an action, if there are no more actions, then do nothing, or
+    -- if no actions are valid, then do nothing
 tryAction :: State -> Maybe Play
 tryAction state
     | actionsLeft state == 0 = Nothing
@@ -85,6 +92,8 @@ tryAction state
                                                (snd $ fromJust chosenCards)
         where chosenCards = chooseMineCard state
 
+-- | Determine which cards to buy.  These are a relatively arbitrary set of rules,
+    -- so no guarantee on how this will perform
 chooseBuyCard :: State -> Maybe Play
 chooseBuyCard state
     | coinsLeft state >= 8 && provinceInSupply = Just $ Buy $ Victory Province
@@ -100,40 +109,26 @@ chooseBuyCard state
                                  (cardCount (Action Mine) $ hand state) +
                                  (cardCount (Action Mine) $ discards state)
 
+-- | Determine whether or not the player is able to buy a card, if the player can,
+    -- then choose which one to buy.
 tryBuy :: State -> Maybe Play
 tryBuy state
     | buysLeft state == 0      = Nothing
     | hasTreasure $ hand state = Just $ Add $ (head . getTreasure . hand) state
     | otherwise                = chooseBuyCard state
 
-
+-- Clean the hand with either a card to display or nothing if the hand is empty
 cleanHand :: State -> Play
 cleanHand state
     | (length . hand) state > 0 = Clean $ (Just . head . hand) state
     | otherwise                 = Clean Nothing
 
+-- | Actually perform the move and return the desired play
 move :: State -> Play
 move state
     | not $ isNothing act = fromJust act
     | not $ isNothing buy = fromJust buy
-    | otherwise         = clean
+    | otherwise           = clean
         where act   = tryAction state
               buy   = tryBuy state
               clean = cleanHand state
-
-main = do
-    print $ move testState
-    -- print $ fromJust $ tryAction testState
-
-testState = State {
-    actionsLeft  = 1,
-    buysLeft     = 0,
-    coinsLeft    = 1,
-    players      = ["Test1", "Test2", "Test3"],
-    deck         = [],
-    discards     = [],
-    hand         = [Action Mine],
-    supply       = [Treasure Gold, Treasure Silver, Victory Province, Action Mine],
-    plays        = [],
-    trash        = []
-}
