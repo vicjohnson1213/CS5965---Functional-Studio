@@ -31,7 +31,7 @@ chooseAction :: State -> Maybe Action
 chooseAction st
     | null $ hand st = Nothing
     | null actions   = Nothing
-    | otherwise      = Just $ extractAction $ minimumBy compareActPrecedence $ filter filterAction $ hand st
+    | otherwise      = Just $ extractAction $ maximumBy compareActPrecedence $ filter filterAction $ hand st
         where actions = filter filterAction $ hand st
 
 buildAction :: State -> Action -> Maybe Play
@@ -43,6 +43,7 @@ buildAction st Workshop
 buildAction st Mine
     | isJust chosenCards = Just $ Act Mine [fst $ fromJust chosenCards,
                                             snd $ fromJust chosenCards]
+    | otherwise          = Nothing
         where chosenCards = chooseMineCards st
 buildAction _ act = Just $ Act act []
 
@@ -53,16 +54,19 @@ tryAction :: State -> Maybe Play
 tryAction st
     | actionsLeft st == 0    = Nothing
     | isNothing chosenAction = Nothing
-    | otherwise              = Just $ fromJust $ buildAction st (fromJust chosenAction)
+    | isNothing builtAction  = Nothing
+    | otherwise              = Just $ fromJust builtAction
         where chosenAction = chooseAction st
+              builtAction  = buildAction st (fromJust chosenAction)
 
 -- | Determine which cards to buy.  These are a relatively arbitrary set of rules,
     -- so no guarantee on how this will perform
 chooseBuyCard :: State -> Maybe Play
 chooseBuyCard st
     | null $ supply st = Nothing
+    | null buyCards    = Nothing
     | shouldBuyCopper  = Just $ Buy $ Treasure Copper
-    | otherwise        = Just $ Buy $ minimumBy compareBuyPrecedence buyCards
+    | otherwise        = Just $ Buy $ maximumBy compareBuyPrecedence buyCards
         where shouldBuyCopper = coinsLeft st == 0 && hasCard (Treasure Copper) (supply st)
               sup             = filter (filterByCost $ coinsLeft st) $ supply st
               buyCards        = filter (filterTooMany st) sup
@@ -78,8 +82,8 @@ tryBuy st
 -- Clean the hand with either a card to display or nothing if the hand is empty
 cleanHand :: State -> Play
 cleanHand st
-    | (not . null . hand) st = Clean $ (Just . head . hand) st
-    | otherwise                 = Clean Nothing
+    | (not . null . hand) st = Clean [(head . hand) st]
+    | otherwise                 = Clean []
 
 -- | Actually perform the move and return the desired play
 move :: State -> Play
@@ -90,3 +94,11 @@ move st
         where act   = tryAction st
               buy   = tryBuy st
               clean = cleanHand st
+
+chooseDiscardCards :: State -> [Card]
+chooseDiscardCards st = take (length (hand st) - 3) (sortBy compareDiscardPrecedence $ hand st)
+
+defend :: State -> Defense
+defend st
+    | hasCard (Action Moat) (hand st) = MoatDefense
+    | otherwise                       = Discard $ chooseDiscardCards st

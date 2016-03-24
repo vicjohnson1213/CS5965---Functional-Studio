@@ -59,18 +59,44 @@ actPrecedence (Action Militia)    = 9
 actPrecedence (Action Moat)       = 1
 actPrecedence _                   = error "Unknown action"
 
+discardPrecedence :: Card -> Int
+
+discardPrecedence (Treasure Copper)   = 0
+discardPrecedence (Treasure Silver)   = 1
+discardPrecedence (Treasure Gold)     = 2
+
+discardPrecedence (Victory Estate)    = 14
+discardPrecedence (Victory Duchy)     = 15
+discardPrecedence (Victory Province)  = 16
+
+discardPrecedence (Action Mine)       = 11
+discardPrecedence (Action Cellar)     = 10
+discardPrecedence (Action Market)     = 9
+discardPrecedence (Action Remodel)    = 13
+discardPrecedence (Action Smithy)     = 8
+discardPrecedence (Action Village)    = 7
+discardPrecedence (Action Woodcutter) = 5
+discardPrecedence (Action Workshop)   = 6
+discardPrecedence (Action Militia)    = 4
+discardPrecedence (Action Moat)       = 3
+
 compareActPrecedence :: Card -> Card -> Ordering
 compareActPrecedence c1 c2
-    | actPrecedence c1 < actPrecedence c2 = GT
-    | actPrecedence c1 > actPrecedence c2 = LT
+    | actPrecedence c1 < actPrecedence c2 = LT
+    | actPrecedence c1 > actPrecedence c2 = GT
     | otherwise                           = EQ
 
 compareBuyPrecedence :: Card -> Card -> Ordering
 compareBuyPrecedence c1 c2
-    | buyPrecedence c1 < buyPrecedence c2 = GT
-    | buyPrecedence c1 > buyPrecedence c2 = LT
+    | buyPrecedence c1 < buyPrecedence c2 = LT
+    | buyPrecedence c1 > buyPrecedence c2 = GT
     | otherwise                           = EQ
 
+compareDiscardPrecedence :: Card -> Card -> Ordering
+compareDiscardPrecedence c1 c2
+    | discardPrecedence c1 < discardPrecedence c2 = LT
+    | discardPrecedence c1 > discardPrecedence c2 = GT
+    | otherwise                                   = EQ
 
 deckMax :: Card -> Int
 

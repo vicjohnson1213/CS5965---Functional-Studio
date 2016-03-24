@@ -7,6 +7,10 @@ isMove :: Notification -> Bool
 isMove (Move _) = True
 isMove _        = False
 
+isAttack :: Notification -> Bool
+isAttack (Attacked _) = True
+isAttack _        = False
+
 -- | Check to see if a specified set of cards contains a certian card
 hasCard :: (Card -> [Card] -> Bool)
 hasCard = elem

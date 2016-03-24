@@ -11,7 +11,7 @@ main = do
     -- print $ move buyProvinceState
     -- print $ move noMineState
     -- print $ move buyMineState
-    print $ move buyDuchyState
+    print $ defend newthing
 
 cleanState = State {
     actionsLeft  = 0,
@@ -112,6 +112,19 @@ buyDuchyState = State {
     deck         = [],
     discards     = [],
     hand         = [Action Mine, Action Mine],
+    supply       = [Action Mine, Victory Estate, Victory Duchy, Victory Province],
+    plays        = [],
+    trash        = []
+}
+
+newthing = State {
+    actionsLeft  = 0,
+    buysLeft     = 1,
+    coinsLeft    = 6,
+    players      = [],
+    deck         = [],
+    discards     = [],
+    hand         = [Action Mine, Action Mine, Action Mine, Victory Estate, Victory Duchy, Victory Duchy],
     supply       = [Action Mine, Victory Estate, Victory Duchy, Victory Province],
     plays        = [],
     trash        = []
