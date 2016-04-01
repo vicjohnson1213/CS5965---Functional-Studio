@@ -17,15 +17,16 @@ insertWord dict word foll = Map.insertWith updateWord lword (Map.singleton lfoll
           lfoll = map Char.toLower foll
           updateWord _ = Map.insertWith (+) lfoll 1
 
-learnString :: WordDict -> String -> WordDict
-learnString dict str = fst $ fst $ List.mapAccumL accumulator (dict, head $ words str) $ tail $ words str
+learnWords :: WordDict -> String -> WordDict
+learnWords dict []  = dict
+learnWords dict str = fst $ fst $ List.mapAccumL accumulator (dict, head $ words str) $ tail $ words str
 
 accumulator :: (WordDict, Word) -> Word -> ((WordDict, Word), Word)
 accumulator dict val = ((uncurry insertWord dict val, val), val)
 
-teachStrings :: WordDict -> [String] -> WordDict
-teachStrings dict []   = dict
-teachStrings dict strs = teachStrings (learnString dict $ head strs) $ tail strs
+learnStrings :: WordDict -> [String] -> WordDict
+learnStrings dict []   = dict
+learnStrings dict strs = learnStrings (learnWords dict (head strs)) $ tail strs
 
 guessWord :: WordDict -> Word -> Maybe Word
 guessWord dict word
@@ -47,8 +48,8 @@ predict dict = do
                 else predict dict
         else print "Adios"
 
-stripChars :: String -> String -> String
-stripChars = filter . flip notElem
+isAlpha :: Char -> Bool
+isAlpha c = c `elem` (['A'..'Z'] ++ ['a'..'z'] ++ ". ")
 
 replace :: Char -> Char -> String -> String
 replace o r = map repl
@@ -66,13 +67,14 @@ teach = do
     -- line <- getLine
     args <- getArgs
     text <-  readFile $ head args
-    let filtered = replace '\n' ' ' text
-        dict     = teachStrings Map.empty $ map (unwords . words) $ Split.endBy "." filtered
-
-    print $ runner 10 ["mother"] dict
-    -- predict dict
+    let filtered = filter isAlpha $ replace '\n' ' ' text
+        dict     = learnStrings Map.empty $ map (unwords . words) $ Split.endBy "." filtered
+    -- print filtered
+    -- print dict
+    print $ runner 20 ["down"] dict
+    predict dict
     -- if filtered /= "-END TRAINING-"
-    --     then teach $ teachStrings dict $ map (unwords . words) $ Split.endBy "." filtered
+    --     then teach $ learnStrings dict $ map (unwords . words) $ Split.endBy "." filtered
     --     else predict dict
 
 main :: IO ()
