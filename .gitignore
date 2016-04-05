@@ -5,3 +5,4 @@ sudoku*/Server
 sudoku*/*.txt
 **/*.hi
 **/*.o
+predictor/*.txt

@@ -1,0 +1,130 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+-- | This module provides a basic text editor widget. You'll need to
+-- embed an 'Editor' in your application state and transform it with
+-- 'handleEvent' when relevant events arrive. To get the contents
+-- of the editor, just use 'getEditContents'. To modify it, use the
+-- 'Z.TextZipper' interface with 'applyEdit'.
+--
+-- The editor's 'HandleEvent' instance handles a set of basic input
+-- events that should suffice for most purposes; see the source for a
+-- complete list.
+module MyEdit
+  ( Editor(..)
+  -- * Constructing an editor
+  , editor
+  -- * Reading editor contents
+  , getEditContents
+  -- * Editing text
+  , applyEdit
+  -- * Lenses for working with editors
+  , editContentsL
+  , editDrawContentsL
+  -- * Rendering editors
+  , renderEditor
+  -- * Attributes
+  , editAttr
+  )
+where
+
+import Control.Lens
+import Graphics.Vty (Event(..), Key(..), Modifier(..))
+
+import qualified Data.Text.Zipper as Z
+
+import Brick.Types
+import Brick.Widgets.Core
+import Brick.AttrMap
+
+-- | Editor state.  Editors support the following events by default:
+--
+-- * Ctrl-a: go to beginning of line
+-- * Ctrl-e: go to end of line
+-- * Ctrl-d, Del: delete character at cursor position
+-- * Backspace: delete character prior to cursor position
+-- * Ctrl-k: delete all from cursor to end of line
+-- * Arrow keys: move cursor
+-- * Enter: break the current line at the cursor position
+data Editor =
+    Editor { editContents :: Z.TextZipper String
+           -- ^ The contents of the editor
+           , editDrawContents :: [String] -> Widget
+           -- ^ The function the editor uses to draw its contents
+           , editorName :: Name
+           -- ^ The name of the editor
+           , mode :: Int
+           }
+
+suffixLenses ''Editor
+
+insertMode :: (Eq a, Monoid a) => Event -> Z.TextZipper a -> Z.TextZipper a
+insertMode e = case e of
+                EvKey KEnter [] -> Z.breakLine
+                EvKey KDel [] -> Z.deleteChar
+                EvKey (KChar c) [] -> Z.insertChar c
+                EvKey KUp [] -> Z.moveUp
+                EvKey KDown [] -> Z.moveDown
+                EvKey KLeft [] -> Z.moveLeft
+                EvKey KRight [] -> Z.moveRight
+                EvKey KBS [] -> Z.deletePrevChar
+                _ -> id
+
+instance HandleEvent Editor where
+    handleEvent e ed
+        | mode ed == 1 = return $ applyEdit (insertMode e) ed
+        | otherwise = return $ applyEdit f ed
+            where f = case e of
+                        EvKey (KChar 'j') [] -> Z.moveDown
+                        EvKey (KChar 'k') [] -> Z.moveUp
+                        EvKey (KChar 'h') [] -> Z.moveLeft
+                        EvKey (KChar 'l') [] -> Z.moveRight
+                        EvKey (KChar 'i') [] -> Z.moveRight
+                        _ -> id
+
+-- | Construct an editor.
+editor :: Name
+       -- ^ The editor's name (must be unique)
+       -> ([String] -> Widget)
+       -- ^ The content rendering function
+       -> Maybe Int
+       -- ^ The limit on the number of lines in the editor ('Nothing'
+       -- means no limit)
+       -> String
+       -- ^ The initial content
+       -> Int
+       -> Editor
+editor name draw limit s = Editor (Z.stringZipper [s] limit) draw name
+
+-- | Apply an editing operation to the editor's contents. Bear in mind
+-- that you should only apply zipper operations that operate on the
+-- current line; the editor will only ever render the first line of
+-- text.
+applyEdit :: (Z.TextZipper String -> Z.TextZipper String)
+          -- ^ The 'Data.Text.Zipper' editing transformation to apply
+          -> Editor
+          -> Editor
+applyEdit f e = e & editContentsL %~ f
+
+-- | The attribute assigned to the editor
+editAttr :: AttrName
+editAttr = "edit"
+
+-- | Get the contents of the editor.
+getEditContents :: Editor -> [String]
+getEditContents e = Z.getText $ e^.editContentsL
+
+-- | Turn an editor state value into a widget
+renderEditor :: Editor -> Widget
+renderEditor e =
+    let cp = Z.cursorPosition $ e^.editContentsL
+        cursorLoc = Location (cp^._2, cp^._1)
+        limit = case e^.editContentsL.to Z.getLineLimit of
+            Nothing -> id
+            Just lim -> vLimit lim
+    in withAttr editAttr $
+       limit $
+       viewport (e^.editorNameL) Both $
+       showCursor (e^.editorNameL) cursorLoc $
+       visibleRegion cursorLoc (1, 1) $
+       e^.editDrawContentsL $
+       getEditContents e
