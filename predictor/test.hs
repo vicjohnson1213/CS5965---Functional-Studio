@@ -1,60 +1,60 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RankNTypes #-}
 module Main where
 
-import Control.Lens
+import Data.Default
 import qualified Graphics.Vty as V
 
-import qualified Brick.Main as M
-import qualified Brick.Types as T
-import Brick.Widgets.Core (str)
-import qualified MyEdit as E
-import qualified Brick.AttrMap as A
-import Brick.Util (on)
+import Brick.Main (App(..), neverShowCursor, resizeOrQuit, defaultMain)
+import Brick.Types
+  ( Widget
+  , Padding(..)
+  )
+import Brick.Widgets.Core
+  ( vBox
+  , hBox
+  , str
+  , padAll
+  , padLeft
+  , padRight
+  , padTop
+  , padBottom
+  , padTopBottom
+  , padLeftRight
+  )
+import Brick.Widgets.Border as B
+import Brick.Widgets.Center as C
 
-data St = St {
-    _currentEditor :: T.Name,
-    _editor :: E.Editor
-}
+ui :: Widget
+ui =
+    vBox [ hBox [ padLeft Max $ vCenter $ str "Left-padded"
+                , B.vBorder
+                , padRight Max $ vCenter $ str "Right-padded"
+                ]
+         , B.hBorder
+         , hBox [ padTop Max $ hCenter $ str "Top-padded"
+                , B.vBorder
+                , padBottom Max $ hCenter $ str "Bottom-padded"
+                ]
+         , B.hBorder
+         , hBox [ padLeftRight 2 $ str "Padded by 2 on left/right"
+                , B.vBorder
+                , vBox [ padTopBottom 1 $ str "Padded by 1 on top/bottom"
+                       , B.hBorder
+                       ]
+                ]
+         , B.hBorder
+         , padAll 2 $ str "Padded by 2 on all sides"
+         ]
 
-makeLenses ''St
-
-drawUI :: St -> [T.Widget]
-drawUI st = [ui]
-    where
-        ui = E.renderEditor $ st^.editor
-
-appEvent :: St -> V.Event -> T.EventM (T.Next St)
-appEvent st ev =
-    case ev of
-        V.EvKey V.KEsc [] -> M.halt st
-        V.EvKey (V.KChar 'i') [] -> M.continue (st {_editor=newEdit})
-            where ed = st^.editor
-                  newEdit = E.Editor (E.editContents ed) (E.editDrawContents ed) (E.editorName ed) 1
-        _ -> M.continue =<< T.handleEventLensed st editor ev
-            
-
-initialState :: St
-initialState = St "editor" (E.editor "editor" (str . unlines) Nothing "" 0)
-
-theMap :: A.AttrMap
-theMap = A.attrMap V.defAttr []
-
-appCursor :: St -> [T.CursorLocation] -> Maybe T.CursorLocation
-appCursor st = M.showCursorNamed (st^.currentEditor)
-
-theApp :: M.App St V.Event
-theApp =
-    M.App { M.appDraw = drawUI
-          , M.appChooseCursor = appCursor
-          , M.appHandleEvent = appEvent
-          , M.appStartEvent = return
-          , M.appAttrMap = const theMap
-          , M.appLiftVtyEvent = id
-          }
+app :: App () V.Event
+app =
+    App { appDraw = const [ui]
+        , appHandleEvent = resizeOrQuit
+        , appStartEvent = return
+        , appAttrMap = const def
+        , appChooseCursor = neverShowCursor
+        , appLiftVtyEvent = id
+        }
 
 main :: IO ()
-main = do
-    st <- M.defaultMain theApp initialState
-    putStrLn "done"
+main = defaultMain app ()

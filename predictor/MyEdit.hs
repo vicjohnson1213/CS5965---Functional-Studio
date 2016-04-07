@@ -10,7 +10,7 @@
 -- events that should suffice for most purposes; see the source for a
 -- complete list.
 module MyEdit
-  ( Editor(..)
+  ( Editor(editContents, editorName, editDrawContents)
   -- * Constructing an editor
   , editor
   -- * Reading editor contents
@@ -24,6 +24,7 @@ module MyEdit
   , renderEditor
   -- * Attributes
   , editAttr
+  , lastWord
   )
 where
 
@@ -52,34 +53,39 @@ data Editor =
            -- ^ The function the editor uses to draw its contents
            , editorName :: Name
            -- ^ The name of the editor
-           , mode :: Int
            }
 
 suffixLenses ''Editor
 
-insertMode :: (Eq a, Monoid a) => Event -> Z.TextZipper a -> Z.TextZipper a
-insertMode e = case e of
-                EvKey KEnter [] -> Z.breakLine
-                EvKey KDel [] -> Z.deleteChar
-                EvKey (KChar c) [] -> Z.insertChar c
-                EvKey KUp [] -> Z.moveUp
-                EvKey KDown [] -> Z.moveDown
-                EvKey KLeft [] -> Z.moveLeft
-                EvKey KRight [] -> Z.moveRight
-                EvKey KBS [] -> Z.deletePrevChar
-                _ -> id
+insertStr :: String -> Z.TextZipper String -> Z.TextZipper String
+insertStr st z = foldl (flip Z.insertChar) z st
+
+insertPair :: Char -> Char -> Z.TextZipper String -> Z.TextZipper String
+insertPair o c z = Z.moveLeft $ Z.insertChar c $ Z.insertChar o z
 
 instance HandleEvent Editor where
-    handleEvent e ed
-        | mode ed == 1 = return $ applyEdit (insertMode e) ed
-        | otherwise = return $ applyEdit f ed
-            where f = case e of
-                        EvKey (KChar 'j') [] -> Z.moveDown
-                        EvKey (KChar 'k') [] -> Z.moveUp
-                        EvKey (KChar 'h') [] -> Z.moveLeft
-                        EvKey (KChar 'l') [] -> Z.moveRight
-                        EvKey (KChar 'i') [] -> Z.moveRight
-                        _ -> id
+    handleEvent e ed =
+        let f = case e of
+                    EvKey (KChar 'a') [MCtrl] -> Z.gotoBOL
+                    EvKey (KChar 'e') [MCtrl] -> Z.gotoEOL
+                    EvKey (KChar 'd') [MCtrl] -> Z.deleteChar
+                    EvKey (KChar 'k') [MCtrl] -> Z.killToEOL
+                    EvKey (KChar '\t') []     -> insertStr "    "
+                    EvKey (KChar '(') []      -> insertPair '(' ')'
+                    EvKey (KChar '[') []      -> insertPair '[' ']'
+                    EvKey (KChar '{') []      -> insertPair '{' '}'
+                    EvKey (KChar '"') []      -> insertPair '"' '"'
+                    EvKey (KChar '\'') []      -> insertPair '\'' '\''
+                    EvKey (KChar c) []        -> Z.insertChar c
+                    EvKey KDel []             -> Z.deleteChar
+                    EvKey KEnter []           -> Z.breakLine
+                    EvKey KUp []              -> Z.moveUp
+                    EvKey KDown []            -> Z.moveDown
+                    EvKey KLeft []            -> Z.moveLeft
+                    EvKey KRight []           -> Z.moveRight
+                    EvKey KBS []              -> Z.deletePrevChar
+                    _ -> id
+        in return $ applyEdit f ed
 
 -- | Construct an editor.
 editor :: Name
@@ -91,7 +97,6 @@ editor :: Name
        -- means no limit)
        -> String
        -- ^ The initial content
-       -> Int
        -> Editor
 editor name draw limit s = Editor (Z.stringZipper [s] limit) draw name
 
@@ -104,6 +109,12 @@ applyEdit :: (Z.TextZipper String -> Z.TextZipper String)
           -> Editor
           -> Editor
 applyEdit f e = e & editContentsL %~ f
+
+lastWord :: Editor -> String
+lastWord e = case contents of
+                [] -> ""
+                _ -> last contents
+    where contents = words $ head $ Z.getText $ e^.editContentsL
 
 -- | The attribute assigned to the editor
 editAttr :: AttrName
