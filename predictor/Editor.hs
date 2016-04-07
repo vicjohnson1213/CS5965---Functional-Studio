@@ -5,6 +5,7 @@
 module Main where
 
 import Data.List
+import Data.Maybe
 import Control.Lens
 import qualified Graphics.Vty as V
 -- import CGram as G
@@ -18,6 +19,11 @@ import qualified Brick.AttrMap as A
 import Brick.Widgets.Border as B
 import Brick.Util()
 
+safeHead :: [a] -> Maybe a
+safeHead lst
+    | null lst  = Nothing
+    | otherwise = Just $ head lst
+
 data St = St {
     _edit :: E.Editor,
     _dict :: P.Dictionary
@@ -28,16 +34,30 @@ makeLenses ''St
 drawUI :: St -> [T.Widget]
 drawUI st = [vBox [E.renderEditor $ st^.edit,
                    B.hBorder, 
+                   -- hBox [str ("thing: " ++ show (st^.dict))],
                    hBox [str ("Suggestions: " ++ joined)]]]
-    where fixedWords = take 3 $ P.getMatchedWords (P.fixString $ E.lastWord (st^.edit)) (st^.dict)
+    where fixedWords = take 3 $ getSuggestions st
           joined     = intercalate ", " fixedWords
 
 appEvent :: St -> V.Event -> T.EventM (T.Next St)
 appEvent st ev =
     case ev of
         V.EvKey V.KEsc [] -> M.halt st
-        V.EvKey (V.KChar '1') [V.MCtrl] -> M.continue st
+        V.EvKey (V.KChar ' ') [] -> M.continue =<< T.handleEventLensed newSt edit ev
+            where newSt = addWord (E.lastWord (st^.edit)) st
+        V.EvKey (V.KChar '\t') [] -> M.continue $ Main.completeWord headWord $ addWord headWord st
+            where fixedWords = take 3 $ getSuggestions st
+                  headWord   = fromMaybe "" $ safeHead fixedWords
         _ -> M.continue =<< T.handleEventLensed st edit ev
+
+addWord :: String -> St -> St
+addWord new st = st & dict.~ P.addWord new (st^.dict)
+
+completeWord :: String -> St -> St
+completeWord new st = st & edit .~ E.completeWord new (st ^. edit)
+
+getSuggestions :: St -> [String]
+getSuggestions st = P.getMatchedWords (P.fixString $ E.lastWord (st^.edit)) (st^.dict)
 
 initialState :: St
 initialState = St {

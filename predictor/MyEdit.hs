@@ -25,9 +25,11 @@ module MyEdit
   -- * Attributes
   , editAttr
   , lastWord
+  , completeWord
   )
 where
 
+import Data.List
 import Control.Lens
 import Graphics.Vty (Event(..), Key(..), Modifier(..))
 
@@ -109,6 +111,10 @@ applyEdit :: (Z.TextZipper String -> Z.TextZipper String)
           -> Editor
           -> Editor
 applyEdit f e = e & editContentsL %~ f
+
+completeWord :: String -> Editor -> Editor
+completeWord "" e   = e
+completeWord comp e = e & editContentsL %~ (Z.insertChar ' ' . insertStr (comp \\ lastWord e))
 
 lastWord :: Editor -> String
 lastWord e = case contents of
