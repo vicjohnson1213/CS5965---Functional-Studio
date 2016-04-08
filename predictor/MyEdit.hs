@@ -120,7 +120,7 @@ lastWord :: Editor -> String
 lastWord e = case contents of
                 [] -> ""
                 _ -> last contents
-    where contents = words $ head $ Z.getText $ e^.editContentsL
+    where contents = words $ head $ Z.getText $ e ^. editContentsL
 
 -- | The attribute assigned to the editor
 editAttr :: AttrName
@@ -128,14 +128,14 @@ editAttr = "edit"
 
 -- | Get the contents of the editor.
 getEditContents :: Editor -> [String]
-getEditContents e = Z.getText $ e^.editContentsL
+getEditContents e = Z.getText $ e ^. editContentsL
 
 -- | Turn an editor state value into a widget
 renderEditor :: Editor -> Widget
 renderEditor e =
     let cp = Z.cursorPosition $ e^.editContentsL
-        cursorLoc = Location (cp^._2, cp^._1)
-        limit = case e^.editContentsL.to Z.getLineLimit of
+        cursorLoc = Location (cp ^. _2, cp ^. _1)
+        limit = case e ^. editContentsL.to Z.getLineLimit of
             Nothing -> id
             Just lim -> vLimit lim
     in withAttr editAttr $

@@ -43,14 +43,11 @@ sortPairs pairs = map T.swap $ L.sortBy (flip compare) $ map T.swap pairs
 
 getMatches :: String -> Dictionary -> [(String, Int)]
 getMatches "" _      = []
-getMatches prev dict = filter (isMatch prev) $ M.toList dict
+getMatches prev dict = sortPairs $ filter (isMatch prev) $ M.toList dict
 
 getMatchedWords :: String -> Dictionary -> [String]
 getMatchedWords "" _      = []
 getMatchedWords prev dict = map fst $ getMatches prev dict
-
-initialize :: Dictionary
-initialize = countWords "What is the difference between. \nWhat is the thing that does the thing.\nwhat is not the thing.\nwhat is he doing?\nwhat is happening?\nwhat is that thing?\nwhat is the other thing\nwhat is not happening"
 
 -- main :: IO ()
 -- main = do
